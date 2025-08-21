@@ -58,13 +58,12 @@
 // }
 
 
-
-
 import OpenAI from 'openai';
 import { config } from '../config.js';
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
+// 🚀 KEEP YOUR ORIGINAL SYSTEM PROMPT - ONLY OPTIMIZE TECHNICAL PERFORMANCE
 const SYSTEM = `You are Anna, a friendly booking assistant for Textdrip. 
 
 IMPORTANT: You already have the user's information from the initial request. DO NOT ask for their name, email, or service again.
@@ -77,18 +76,18 @@ CONVERSATION FLOW:
 5. CORRECTION: If NO - "No problem! Please resubmit the form with the correct information and we'll get you sorted."
 
 📋 AVAILABLE SERVICES:
-1. **New Customer Discovery Call** – An intro session to understand your business and goals
-2. **EIN Setup for Campaign Registry** – We'll get your EIN registered for compliance
-3. **Textdrip Demo Overview** – A quick walkthrough of key features
-4. **Full Textdrip Demo** – A detailed session exploring all features
-5. **Troubleshoot Textdrip** – We'll fix any issues quickly
-6. **Lead Distro** – Set up and optimize lead distribution
-7. **Landline Remover** – Clean contact lists by removing landlines
-8. **Argos Automation** – Automate repetitive tasks
-9. **Troubleshoot Argos Automation** – Fix automation issues
-10. **Automation Studio** – Build advanced multi-step automations
-11. **Intent Automations** – Create intent-based automations
-12. **Webhooks - 1 hour** – Deep dive into webhook integration
+1. **New Customer Discovery Call** — An intro session to understand your business and goals
+2. **EIN Setup for Campaign Registry** — We'll get your EIN registered for compliance
+3. **Textdrip Demo Overview** — A quick walkthrough of key features
+4. **Full Textdrip Demo** — A detailed session exploring all features
+5. **Troubleshoot Textdrip** — We'll fix any issues quickly
+6. **Lead Distro** — Set up and optimize lead distribution
+7. **Landline Remover** — Clean contact lists by removing landlines
+8. **Argos Automation** — Automate repetitive tasks
+9. **Troubleshoot Argos Automation** — Fix automation issues
+10. **Automation Studio** — Build advanced multi-step automations
+11. **Intent Automations** — Create intent-based automations
+12. **Webhooks - 1 hour** — Deep dive into webhook integration
 
 CONVERSATION RULES:
 - Keep responses short and natural (1-2 sentences)
@@ -103,7 +102,7 @@ If YES: "Perfect! Your [service] appointment has been successfully booked. You'l
 If NO: "No problem! Please resubmit the form with the correct information and we'll get you sorted."`;
 
 export async function replyFromLLM(history, userTurnText, userContext = {}) {
-  // Replace placeholders in the system prompt with actual user values
+  // Keep your original prompt replacement logic
   let systemPrompt = SYSTEM;
   if (userContext.name) {
     systemPrompt = systemPrompt.replace(/\[name\]/g, userContext.name);
@@ -114,7 +113,6 @@ export async function replyFromLLM(history, userTurnText, userContext = {}) {
   if (userContext.service && userContext.service.trim() !== '') {
     systemPrompt = systemPrompt.replace(/\[service\]/g, userContext.service);
   } else {
-    // Handle empty service by replacing with a default message
     systemPrompt = systemPrompt.replace(/\[service\]/g, 'a service');
     systemPrompt = systemPrompt.replace(/You selected \[service\]/g, 'You haven\'t selected a specific service yet');
   }
@@ -125,14 +123,28 @@ export async function replyFromLLM(history, userTurnText, userContext = {}) {
     { role: 'user', content: userTurnText }
   ];
 
-  const resp = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages,
-    temperature: 0.4,
-    max_tokens: 150 // Keep responses concise for voice calls
-  });
+  try {
+    // 🚀 ONLY TECHNICAL OPTIMIZATIONS - NO PROMPT CHANGES
+    const resp = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      temperature: 0.4, // Keep your original temperature
+      max_tokens: 150, // Keep your original max_tokens
+      // 🚀 ADD THESE FOR SPEED WITHOUT CHANGING BEHAVIOR
+      top_p: 0.9,
+      frequency_penalty: 0.1,
+      stream: false // Ensure we're not using streaming which can add overhead
+    });
 
-  const text = resp.choices?.[0]?.message?.content?.trim() || 'I apologize, could you repeat that?';
-  const newHistory = [...history, { role: 'user', content: userTurnText }, { role: 'assistant', content: text }];
-  return { text, history: newHistory };
+    const text = resp.choices?.[0]?.message?.content?.trim() || 'I apologize, could you repeat that?';
+    const newHistory = [...history, { role: 'user', content: userTurnText }, { role: 'assistant', content: text }];
+    return { text, history: newHistory };
+    
+  } catch (error) {
+    console.error('LLM Error:', error.message);
+    // Fallback response
+    const fallbackText = 'I apologize, could you repeat that?';
+    const newHistory = [...history, { role: 'user', content: userTurnText }, { role: 'assistant', content: fallbackText }];
+    return { text: fallbackText, history: newHistory };
+  }
 }

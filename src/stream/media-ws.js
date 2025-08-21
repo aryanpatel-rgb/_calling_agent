@@ -215,7 +215,6 @@
 // }
 
 
-
 import { WebSocketServer } from 'ws';
 import { log } from '../utils/logger.js';
 import { transcribePcm16ToText } from '../stt/openai.js';
@@ -245,16 +244,15 @@ export function attachMediaWSServer(server) {
   });
 
   wss.on('connection', (ws, req) => {
-    // Add connection timeout for better error handling
     const connectionTimeout = setTimeout(() => {
       if (ws.readyState === ws.CONNECTING) {
         log('Connection timeout, closing WebSocket');
         ws.terminate();
       }
-    }, 10000); // 10 second timeout
+    }, 10000);
 
     try {
-      // Initialize caller context - will be populated when Twilio sends customParameters
+      // Keep your original caller context logic
       let callerCtx = {
         name: '',
         email: '',
@@ -264,14 +262,19 @@ export function attachMediaWSServer(server) {
       log('WebSocket connected, waiting for Twilio parameters...');
 
       let history = [];
-      let collecting = []; // PCM16LE chunks
+      let collecting = [];
       let lastMediaTs = Date.now();
       let busyTalking = false;
-      let streamSid = null; // Store the stream SID for media responses
-      let parametersReceived = false; // Flag to track if we've received parameters
-
-      // Don't send greeting until we have the parameters
+      let streamSid = null;
+      let parametersReceived = false;
       let greetingSent = false;
+
+      // 🚀 PERFORMANCE OPTIMIZATION 1: Faster turn detection
+      const SILENCE_THRESHOLD = 1000; // Reduced from 1500ms but not too aggressive
+      const MIN_AUDIO_CHUNKS = 8; // Reduced from 10 but keep some buffer
+
+      // 🚀 PERFORMANCE OPTIMIZATION 2: Prevent duplicate processing
+      let isCurrentlyProcessing = false;
 
       ws.on('message', async (msg) => {
         try {
@@ -282,12 +285,10 @@ export function attachMediaWSServer(server) {
             streamSid = data.start.streamSid;
             log('Stored stream SID:', streamSid);
             
-            // Extract parameters from Twilio's customParameters
             if (data.start.customParameters) {
               const customParams = data.start.customParameters;
               log('Custom parameters from Twilio:', customParams);
               
-              // Update caller context with Twilio's custom parameters
               callerCtx = {
                 name: customParams.name || '',
                 email: customParams.email || '',
@@ -297,19 +298,19 @@ export function attachMediaWSServer(server) {
               log('Updated caller context from Twilio:', callerCtx);
               parametersReceived = true;
               
-              // Now send the greeting since we have the parameters
+              // Keep your original greeting logic but make it faster
               if (!greetingSent) {
                 greetingSent = true;
-                (async () => {
+                // 🚀 Use your existing LLM but don't wait
+                setImmediate(async () => {
                   try {
-                    // Use the LLM to generate a proper greeting with user context
                     const { text: greet } = await replyFromLLM([], 'Hello', callerCtx);
                     log('Sending greeting:', greet);
                     await speak(ws, greet);
                   } catch (error) {
                     log('Error sending greeting:', error.message);
                   }
-                })();
+                });
               }
             } else {
               log('Warning: No custom parameters received from Twilio');
@@ -326,8 +327,8 @@ export function attachMediaWSServer(server) {
                 const pcm16 = mulawToPcm16(mulawData);
                 collecting.push(pcm16);
                 
-                // Reduced logging to avoid spam
-                if (collecting.length % 20 === 0) {
+                // Reduce logging frequency to improve performance
+                if (collecting.length % 50 === 0) {
                   log(`Collected ${collecting.length} audio chunks`);
                 }
               } catch (error) {
@@ -358,7 +359,7 @@ export function attachMediaWSServer(server) {
         clearTimeout(connectionTimeout);
       });
 
-      // Turn-taking: every 500ms check if caller paused; if yes, transcribe → reply
+      // 🚀 PERFORMANCE OPTIMIZATION 3: Faster interval checking
       const interval = setInterval(async () => {
         if (ws.readyState !== 1) { 
           clearInterval(interval); 
@@ -366,55 +367,72 @@ export function attachMediaWSServer(server) {
         }
         const now = Date.now();
 
-        // Only process if we have enough audio, user has paused, and we have parameters
-        if (collecting.length > 10 && (now - lastMediaTs) > 1500 && !busyTalking && parametersReceived) {
+        // Keep your original logic but with optimized timing
+        if (collecting.length >= MIN_AUDIO_CHUNKS && 
+            (now - lastMediaTs) > SILENCE_THRESHOLD && 
+            !busyTalking && 
+            !isCurrentlyProcessing &&
+            parametersReceived) {
+          
           try {
             log(`Turn-taking triggered: ${collecting.length} chunks, ${now - lastMediaTs}ms since last media`);
+            
+            // 🚀 PREVENT DUPLICATE PROCESSING
+            isCurrentlyProcessing = true;
             busyTalking = true;
+            
             const pcm16 = Buffer.concat(collecting);
-            collecting = [];
+            collecting = []; // Clear immediately
 
-                          const userText = await transcribePcm16ToText(pcm16);
-              if (userText && userText.length > 0) {
-                log('USER>', userText);
-                // Pass user context to the bot so it can use actual values instead of placeholders
-                const { text: bot, history: newHist } = await replyFromLLM(history, userText, callerCtx);
-                history = newHist;
-                log('BOT>', bot);
-                await speak(ws, bot);
+            // 🚀 PERFORMANCE OPTIMIZATION 4: Process in background
+            setImmediate(async () => {
+              try {
+                const userText = await transcribePcm16ToText(pcm16);
+                if (userText && userText.length > 0) {
+                  log('USER>', userText);
+                  // Keep your original LLM call
+                  const { text: bot, history: newHist } = await replyFromLLM(history, userText, callerCtx);
+                  history = newHist;
+                  log('BOT>', bot);
+                  await speak(ws, bot);
+                }
+              } catch (err) {
+                log('Background processing error', err.message);
+              } finally {
+                isCurrentlyProcessing = false;
+                busyTalking = false;
               }
+            });
           } catch (err) {
             log('turn error', err.message);
-          } finally {
+            isCurrentlyProcessing = false;
             busyTalking = false;
           }
         }
-      }, 500);
+      }, 300); // 🚀 Reduced from 500ms to 300ms
 
-      // Heartbeat to keep connection alive
+      // Keep your original heartbeat
       const heartbeat = setInterval(() => {
         if (ws.readyState === 1) {
           ws.ping();
         } else {
           clearInterval(heartbeat);
         }
-      }, 30000); // Every 30 seconds
+      }, 30000);
 
-      // send a TTS sentence to Twilio by μ-law base64 frames
+      // 🚀 PERFORMANCE OPTIMIZATION 5: Faster audio streaming
       async function speak(wsConn, text) {
         try {
           log('Starting TTS for text:', text);
-          busyTalking = true; // Set busy flag before TTS
           
           const pcm8k = await ttsToPcm16(text);
           const mulaw = pcm16ToMulaw(pcm8k);
 
-          const FRAME = 160; // 20ms @ 8kHz
+          const FRAME = 160; // Keep your original frame size
           log(`Sending ${mulaw.length} bytes in ${Math.ceil(mulaw.length/FRAME)} frames`);
           
-          // Send all frames quickly without delays to avoid call timeout
+          // 🚀 OPTIMIZED STREAMING: Send frames faster
           for (let i = 0; i < mulaw.length; i += FRAME) {
-            // Check if WebSocket is still open before sending
             if (wsConn.readyState !== 1) {
               log('WebSocket closed, stopping audio send');
               break;
@@ -435,14 +453,12 @@ export function attachMediaWSServer(server) {
               }
             }));
             
-            // Reduced delay to 3ms for faster response
-            await wait(3);
+            // 🚀 REDUCED DELAY: From 3ms to 1ms
+            await wait(1);
           }
           log('TTS audio sent successfully');
         } catch (e) {
           log('speak error', e.message);
-        } finally {
-          busyTalking = false; // Clear busy flag after TTS
         }
       }
     } catch (error) {
