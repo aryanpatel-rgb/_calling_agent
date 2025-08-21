@@ -302,7 +302,8 @@ export function attachMediaWSServer(server) {
                 greetingSent = true;
                 (async () => {
                   try {
-                    const greet = `Hi ${callerCtx.name}! This is Anna from Textdrip. How can I help you today?`;
+                    // Use the LLM to generate a proper greeting with user context
+                    const { text: greet } = await replyFromLLM([], 'Hello', callerCtx);
                     log('Sending greeting:', greet);
                     await speak(ws, greet);
                   } catch (error) {
@@ -373,14 +374,15 @@ export function attachMediaWSServer(server) {
             const pcm16 = Buffer.concat(collecting);
             collecting = [];
 
-            const userText = await transcribePcm16ToText(pcm16);
-            if (userText && userText.length > 0) {
-              log('USER>', userText);
-              const { text: bot, history: newHist } = await replyFromLLM(history, userText);
-              history = newHist;
-              log('BOT>', bot);
-              await speak(ws, bot);
-            }
+                          const userText = await transcribePcm16ToText(pcm16);
+              if (userText && userText.length > 0) {
+                log('USER>', userText);
+                // Pass user context to the bot so it can use actual values instead of placeholders
+                const { text: bot, history: newHist } = await replyFromLLM(history, userText, callerCtx);
+                history = newHist;
+                log('BOT>', bot);
+                await speak(ws, bot);
+              }
           } catch (err) {
             log('turn error', err.message);
           } finally {

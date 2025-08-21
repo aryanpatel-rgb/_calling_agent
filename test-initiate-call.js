@@ -15,7 +15,7 @@ const testInitiateCall = async () => {
       name: 'John Doe',
       email: 'john@example.com',
       phone: '+1234567890',
-      selected_service: 'consultation'
+      service: 'New Customer Discovery Call'
     });
     
     console.log('   Status:', validResponse.status);
@@ -32,7 +32,7 @@ const testInitiateCall = async () => {
     await axios.post(`${baseUrl}/api/initiate-call`, {
       name: 'John Doe',
       email: 'john@example.com',
-      selected_service: 'consultation'
+      service: 'New Customer Discovery Call'
     });
   } catch (error) {
     console.log('   Status:', error.response?.status);
@@ -47,7 +47,7 @@ const testInitiateCall = async () => {
     await axios.post(`${baseUrl}/api/initiate-call`, {
       email: 'john@example.com',
       phone: '+1234567890',
-      selected_service: 'consultation'
+      service: 'New Customer Discovery Call'
     });
   } catch (error) {
     console.log('   Status:', error.response?.status);
@@ -62,7 +62,7 @@ const testInitiateCall = async () => {
     await axios.post(`${baseUrl}/api/initiate-call`, {
       name: 'John Doe',
       phone: '+1234567890',
-      selected_service: 'consultation'
+      service: 'New Customer Discovery Call'
     });
   } catch (error) {
     console.log('   Status:', error.response?.status);

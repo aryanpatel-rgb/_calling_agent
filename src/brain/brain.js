@@ -97,14 +97,30 @@ CONVERSATION RULES:
 - If user wants to change info, ask them to resubmit the form
 
 When you have name, email, and service selection, confirm:
-"Let me confirm: Name: [name], Email: [email], Service: [service]. Is this correct?"
+"Would you like to proceed with booking [service]?"
 
 If YES: "Perfect! Your [service] appointment has been successfully booked. You'll receive confirmation details shortly."
 If NO: "No problem! Please resubmit the form with the correct information and we'll get you sorted."`;
 
-export async function replyFromLLM(history, userTurnText) {
+export async function replyFromLLM(history, userTurnText, userContext = {}) {
+  // Replace placeholders in the system prompt with actual user values
+  let systemPrompt = SYSTEM;
+  if (userContext.name) {
+    systemPrompt = systemPrompt.replace(/\[name\]/g, userContext.name);
+  }
+  if (userContext.email) {
+    systemPrompt = systemPrompt.replace(/\[email\]/g, userContext.email);
+  }
+  if (userContext.service && userContext.service.trim() !== '') {
+    systemPrompt = systemPrompt.replace(/\[service\]/g, userContext.service);
+  } else {
+    // Handle empty service by replacing with a default message
+    systemPrompt = systemPrompt.replace(/\[service\]/g, 'a service');
+    systemPrompt = systemPrompt.replace(/You selected \[service\]/g, 'You haven\'t selected a specific service yet');
+  }
+  
   const messages = [
-    { role: 'system', content: SYSTEM },
+    { role: 'system', content: systemPrompt },
     ...history,
     { role: 'user', content: userTurnText }
   ];
