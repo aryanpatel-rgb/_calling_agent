@@ -8,10 +8,10 @@ const client = twilio(config.twilio.sid, config.twilio.auth);
 
 router.post('/api/initiate-call', async (req, res) => {
   try {
-    const { name, email, phone, selected_service } = req.body || {};
+    const { name, email, phone, service } = req.body || {};
     if (!phone) return res.status(400).json({ error: 'phone is required' });
 
-    const twimlUrl = `${config.publicBaseUrl}/voice/twiml?name=${encodeURIComponent(name||'')}&email=${encodeURIComponent(email||'')}&service=${encodeURIComponent(selected_service||'')}`;
+    const twimlUrl = `${config.publicBaseUrl}/voice/twiml?name=${encodeURIComponent(name||'')}&email=${encodeURIComponent(email||'')}&service=${encodeURIComponent(service||'')}`;
 
     const call = await client.calls.create({
       to: phone,

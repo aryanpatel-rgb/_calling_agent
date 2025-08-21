@@ -1,134 +1,113 @@
-# 🔧 Troubleshooting Guide: AI Assistant Connection Issues
+# Troubleshooting Guide
 
-## 🚨 Problem: Only Getting "Connection to AI Assistant" Message
+## Environment Setup
 
-If you're only hearing "Connecting you to our assistant" and the AI doesn't respond, follow these steps:
+Before running the application, you need to create a `.env` file with the following variables:
 
-## 📋 Step 1: Check Environment Variables
-
-First, run the environment test:
-```bash
-node test-env.js
-```
-
-**CRITICAL**: Make sure you have a `.env` file with ALL these variables:
 ```env
-# Required for AI to work
+# Twilio Configuration
+TWILIO_ACCOUNT_SID=your_account_sid_here
+TWILIO_AUTH_TOKEN=your_auth_token_here
+TWILIO_PHONE_NUMBER=your_twilio_phone_number
+
+# OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key_here
+
+# ElevenLabs Configuration
 ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
 ELEVENLABS_VOICE_ID=your_voice_id_here
 
-# Required for Twilio
-TWILIO_ACCOUNT_SID=your_twilio_sid_here
-TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
-TWILIO_PHONE_NUMBER=your_twilio_phone_number_here
-
-# CRITICAL: This must be your public URL (ngrok, etc.)
+# Server Configuration
+PORT=3000
 PUBLIC_BASE_URL=https://your-ngrok-url.ngrok.io
 ```
 
-## 🌐 Step 2: Check Public URL Configuration
+## 🎯 **New Conversation Flow**
 
-**MOST IMPORTANT**: Your `PUBLIC_BASE_URL` must be accessible from the internet!
+The system now implements an improved conversation flow:
 
-1. **If using ngrok**: Make sure it's running and the URL is correct
-2. **If using localhost**: This won't work! Twilio needs internet access
-3. **Test your URL**: Visit `https://your-url.ngrok.io/health` in browser
+1. **Call Initiation**: User calls `/api/initiate-call` with name, email, phone, and service
+2. **TwiML Greeting**: "Hello! Thank you for calling. I'm connecting you to Anna, your personal booking assistant who will confirm your details and help schedule your appointment. One moment please."
+3. **AI Greeting**: "Hi [Name]! I'm Anna, your booking assistant. I have your email as [email]. Is that correct?"
+4. **User Confirmation**: User confirms details
+5. **Service & Time**: Anna asks for service details and preferred time
+6. **Appointment Booking**: Anna confirms and books appointment for tomorrow
 
-## 🔍 Step 3: Test the System
+## Testing
 
-### Health Check
+### Test the Complete Flow
 ```bash
-curl http://localhost:3000/health
+# Test conversation flow
+node test-conversation-flow.js
+
+# Test initiate-call endpoint
+node test-initiate-call.js
+
+# Test WebSocket connection
+node test-websocket.js
 ```
 
-### WebSocket Test
-Visit `http://localhost:3000/ws-test` in your browser to test WebSocket connection.
+### Expected Behavior
+- **TwiML**: Professional greeting setting expectations
+- **AI Greeting**: Personalized confirmation of user details
+- **Conversation**: Natural flow to book appointment
+- **Booking**: Confirmation for tomorrow's appointment
 
-### Test OpenAI API
+## Common Issues
+
+### WebSocket Connection Failures
+- Ensure `PUBLIC_BASE_URL` is set to your public URL (e.g., ngrok URL)
+- Check that the WebSocket server is running on the correct port
+- Verify firewall settings allow WebSocket connections
+
+### Audio Transcription Issues
+- Ensure OpenAI API key is valid and has sufficient credits
+- Check that audio is being received in the correct format (PCM16)
+- Verify the audio buffer size is appropriate for transcription
+
+### TTS (Text-to-Speech) Issues
+- Ensure ElevenLabs API key is valid
+- Check that the voice ID exists in your ElevenLabs account
+- Verify the audio format conversion is working correctly
+
+### Twilio Call Issues
+- Ensure Twilio credentials are correct
+- Check that the phone number is verified in your Twilio account
+- Verify the TwiML generation is working correctly
+
+### Validation Issues
+- **Name Required**: Call initiation requires user's name
+- **Email Required**: Call initiation requires user's email
+- **Phone Required**: Call initiation requires phone number
+- **Service Optional**: Service type is optional but recommended
+
+## Logs
+
+The application provides detailed logging. Check the console output for:
+- WebSocket connection status
+- Audio processing information
+- API call results
+- Error messages
+- Conversation flow progression
+
+## Debug Commands
+
+### Check Environment Variables
 ```bash
-node test-env.js
+node -e "console.log('PUBLIC_BASE_URL:', process.env.PUBLIC_BASE_URL)"
 ```
 
-## 🐛 Step 4: Check Logs
-
-Start your server and watch the logs:
+### Test WebSocket Connection
 ```bash
-npm start
+node test-websocket.js
 ```
 
-Look for these messages:
-- ✅ `WebSocket connected from Twilio stream`
-- ✅ `AI Assistant Anna is now active and ready to help!`
-- ✅ `AI response generated successfully`
-
-If you see errors, they'll help identify the issue.
-
-## 🚀 Step 5: Common Fixes
-
-### Fix 1: Missing PUBLIC_BASE_URL
+### Test Complete Flow
 ```bash
-# In your .env file, add:
-PUBLIC_BASE_URL=https://your-ngrok-url.ngrok.io
+node test-conversation-flow.js
 ```
 
-### Fix 2: OpenAI API Key Issues
-- Check your OpenAI API key is valid
-- Ensure you have credits in your OpenAI account
-- Verify the API key format
-
-### Fix 3: WebSocket Connection Issues
-- Make sure your public URL is accessible
-- Check firewall settings
-- Verify ngrok is running and stable
-
-### Fix 4: Audio Processing Issues
-- Check ElevenLabs API key and voice ID
-- Ensure audio format compatibility
-
-## 📞 Step 6: Test the Full Flow
-
-1. **Start your server**: `npm start`
-2. **Start ngrok**: `ngrok http 3000`
-3. **Update .env**: Set `PUBLIC_BASE_URL` to your ngrok URL
-4. **Restart server**: Stop and start again
-5. **Make a test call**: Use Twilio to call your number
-
-## 🔍 Debug Commands
-
-### Check if WebSocket is working:
+### Test API Endpoints
 ```bash
-curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==" http://localhost:3000/media
+node test-initiate-call.js
 ```
-
-### Check environment variables:
-```bash
-node -e "console.log(process.env.PUBLIC_BASE_URL)"
-```
-
-## 📱 Expected Behavior
-
-When working correctly, you should hear:
-1. "Hello! Connecting you to our AI assistant Anna..."
-2. "Connection established. You can now speak with Anna."
-3. **AI responds**: "Hi! I'm Anna, your AI booking assistant..."
-
-## 🆘 Still Not Working?
-
-If you're still having issues:
-
-1. **Check the logs** for specific error messages
-2. **Verify all API keys** are working
-3. **Test WebSocket connection** using `/ws-test` endpoint
-4. **Ensure ngrok is stable** and URL doesn't change
-5. **Check Twilio webhook configuration** points to correct URL
-
-## 📞 Support
-
-Common issues and solutions:
-- **"WebSocket upgrade failed"** → Check PUBLIC_BASE_URL
-- **"OpenAI API error"** → Check API key and credits
-- **"No audio response"** → Check ElevenLabs configuration
-- **"Connection timeout"** → Check internet connectivity and ngrok
-
-Remember: The most common issue is missing or incorrect `PUBLIC_BASE_URL` in your `.env` file!

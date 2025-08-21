@@ -31,7 +31,11 @@ router.post('/voice/twiml', (req, res) => {
   const wsUrl = buildWsUrl(config.publicBaseUrl, { name, email, service });
   log('WebSocket URL:', wsUrl);
 
-  connect.stream({ url: wsUrl });
+  // Add custom parameters to the stream for better parameter passing
+  const stream = connect.stream({ url: wsUrl });
+  if (name) stream.parameter({ name: 'name', value: name });
+  if (email) stream.parameter({ name: 'email', value: email });
+  if (service) stream.parameter({ name: 'service', value: service });
 
   res.type('text/xml');
   const twimlString = twiml.toString();
@@ -52,7 +56,11 @@ router.get('/voice/twiml', (req, res) => {
   const wsUrl = buildWsUrl(config.publicBaseUrl, { name, email, service });
   log('WebSocket URL:', wsUrl);
 
-  connect.stream({ url: wsUrl });
+  // Add custom parameters to the stream for better parameter passing
+  const stream = connect.stream({ url: wsUrl });
+  if (name) stream.parameter({ name: 'name', value: name });
+  if (email) stream.parameter({ name: 'email', value: email });
+  if (service) stream.parameter({ name: 'service', value: service });
 
   res.type('text/xml');
   const twimlString = twiml.toString();
